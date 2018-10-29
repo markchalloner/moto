@@ -495,7 +495,7 @@
 - [ ] get_stack_policy
 - [ ] get_template
 - [ ] get_template_summary
-- [ ] list_change_sets
+- [X] list_change_sets
 - [X] list_exports
 - [ ] list_imports
 - [ ] list_stack_instances
