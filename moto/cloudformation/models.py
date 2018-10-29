@@ -126,6 +126,25 @@ class FakeStack(BaseModel):
         self.status = "DELETE_COMPLETE"
 
 
+class FakeChangeSet(FakeStack):
+    def __init__(self, stack_id, stack_name, change_set_id, change_set_name, template, parameters, region_name, notification_arns=None, tags=None, role_arn=None, cross_stack_resources=None):
+        super().__init__(
+            stack_id,
+            stack_name,
+            template,
+            parameters,
+            region_name,
+            notification_arns=notification_arns,
+            tags=tags,
+            role_arn=role_arn,
+            cross_stack_resources=cross_stack_resources,
+            create_change_set=True,
+        )
+        self.stack_name = stack_name
+        self.change_set_id = change_set_id
+        self.change_set_name = change_set_name
+
+
 class FakeEvent(BaseModel):
 
     def __init__(self, stack_id, stack_name, logical_resource_id, physical_resource_id, resource_type, resource_status, resource_status_reason=None, resource_properties=None):
@@ -170,24 +189,50 @@ class CloudFormationBackend(BaseBackend):
         return new_stack
 
     def create_change_set(self, stack_name, change_set_name, template, parameters, region_name, change_set_type, notification_arns=None, tags=None, role_arn=None):
+        stack_id = None
         if change_set_type == 'UPDATE':
             stacks = self.stacks.values()
             stack = None
             for s in stacks:
                 if s.name == stack_name:
                     stack = s
+                    stack_id = stack.stack_id
             if stack is None:
                 raise ValidationError(stack_name)
-
         else:
-            stack = self.create_stack(stack_name, template, parameters,
-                                      region_name, notification_arns, tags,
-                                      role_arn, create_change_set=True)
+            stack_id = generate_stack_id(stack_name)
+
         change_set_id = generate_changeset_id(change_set_name, region_name)
-        self.stacks[change_set_name] = {'Id': change_set_id,
-                                        'StackId': stack.stack_id}
-        self.change_sets[change_set_id] = stack
-        return change_set_id, stack.stack_id
+        new_change_set = FakeChangeSet(
+            stack_id=stack_id,
+            stack_name=stack_name,
+            change_set_id=change_set_id,
+            change_set_name=change_set_name,
+            template=template,
+            parameters=parameters,
+            region_name=region_name,
+            notification_arns=notification_arns,
+            tags=tags,
+            role_arn=role_arn,
+            cross_stack_resources=self.exports
+        )
+        self.change_sets[change_set_id] = new_change_set
+        self.stacks[stack_id] = new_change_set
+        return change_set_id, stack_id
+
+    def describe_change_set(self, change_set_name, stack_name=None):
+        change_set = None
+        change_sets = self.change_sets.values()
+        if change_set_name in self.change_sets:
+            # This means arn was passed in
+            change_set = self.change_sets[change_set_name]
+        else:
+            for cs in self.change_sets:
+                if self.change_sets[cs].change_set_name == change_set_name:
+                    change_set = self.change_sets[cs]
+        if change_set is None:
+            raise ValidationError(change_set_name)
+        return change_set
 
     def execute_change_set(self, change_set_name, stack_name=None):
         stack = None
@@ -196,7 +241,7 @@ class CloudFormationBackend(BaseBackend):
             stack = self.change_sets[change_set_name]
         else:
             for cs in self.change_sets:
-                if self.change_sets[cs].name == change_set_name:
+                if self.change_sets[cs].change_set_name == change_set_name:
                     stack = self.change_sets[cs]
         if stack is None:
             raise ValidationError(stack_name)
@@ -221,6 +266,9 @@ class CloudFormationBackend(BaseBackend):
             raise ValidationError(name_or_stack_id)
         else:
             return list(stacks)
+
+    def list_change_sets(self):
+        return self.change_sets.values()
 
     def list_stacks(self):
         return self.stacks.values()
