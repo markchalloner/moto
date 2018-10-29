@@ -185,6 +185,11 @@ class CloudFormationResponse(BaseResponse):
         template = self.response_template(DESCRIBE_STACK_EVENTS_RESPONSE)
         return template.render(stack=stack)
 
+    def list_change_sets(self):
+        change_sets = self.cloudformation_backend.list_change_sets()
+        template = self.response_template(LIST_CHANGE_SETS_RESPONSE)
+        return template.render(change_sets=change_sets)
+
     def list_stacks(self):
         stacks = self.cloudformation_backend.list_stacks()
         template = self.response_template(LIST_STACKS_RESPONSE)
@@ -449,6 +454,27 @@ DESCRIBE_STACK_EVENTS_RESPONSE = """<DescribeStackEventsResponse xmlns="http://c
     <RequestId>b9b4b068-3a41-11e5-94eb-example</RequestId>
   </ResponseMetadata>
 </DescribeStackEventsResponse>"""
+
+
+LIST_CHANGE_SETS_RESPONSE = """<ListChangeSetsResponse>
+ <ListChangeSetsResult>
+  <Summaries>
+    {% for change_set in change_sets %}
+    <member>
+        <StackId>{{ change_set.stack_id }}</StackId>
+        <StackName>{{ change_set.stack_name }}</StackName>
+        <ChangeSetId>{{ change_set.change_set_id }}</ChangeSetId>
+        <ChangeSetName>{{ change_set.change_set_name }}</ChangeSetName>
+        <ExecutionStatus>{{ change_set.execution_status }}</ExecutionStatus>
+        <Status>{{ change_set.status }}</Status>
+        <StatusReason>{{ change_set.status_reason }}</StatusReason>
+        <CreationTime>2011-05-23T15:47:44Z</CreationTime>
+        <Description>{{ change_set.description }}</Description>
+    </member>
+    {% endfor %}
+  </Summaries>
+ </ListChangeSetsResult>
+</ListChangeSetsResponse>"""
 
 
 LIST_STACKS_RESPONSE = """<ListStacksResponse>
