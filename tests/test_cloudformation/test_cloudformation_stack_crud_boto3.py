@@ -490,20 +490,6 @@ def test_describe_stack_by_stack_id():
 
 
 @mock_cloudformation
-def test_list_change_sets():
-    cf_conn = boto3.client('cloudformation', region_name='us-east-1')
-    cf_conn.create_change_set(
-        StackName='NewStack2',
-        TemplateBody=dummy_template_json,
-        ChangeSetName='NewChangeSet2',
-        ChangeSetType='CREATE',
-    )
-    change_set = cf_conn.list_change_sets(StackName='NewStack2')['Summaries'][0]
-    change_set['StackName'].should.equal('NewStack2')
-    change_set['ChangeSetName'].should.equal('NewChangeSet2')
-
-
-@mock_cloudformation
 def test_list_stacks():
     cf = boto3.resource('cloudformation', region_name='us-east-1')
     cf.create_stack(
